@@ -1,0 +1,21 @@
+{
+  "name": "instagram-api",
+  "version": "1.0.0",
+  "description": "Instagram API which allows you to do the exact same thing you could be doing without an Instagram account.",
+  "main": "dist/index.js",
+  "scripts": {
+      "start": "node test.js",
+      "compile": "tsc -p tsconfig.json",
+      "watch": "tsc -w -p tsconfig.json"
+  },
+  "keywords": [],
+    "author": "Ximaz <malo.durand@epitech.eu> (DURAND Malo)",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^18.15.9",
+    "typescript": "^5.0.2"
+  },
+  "dependencies": {
+    "got": "^12.6.0"
+  }
+}
