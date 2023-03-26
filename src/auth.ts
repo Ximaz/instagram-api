@@ -30,6 +30,22 @@ export async function getUserPage(username: string): Promise<string> {
     } })).data
 }
 
+export async function getIGABSDId(html: string): Promise<number | undefined> {
+    const script = /\<link rel="preload" href="(https:\/\/static.cdninstagram.com\/rsrc.php\/.+\/epE5i0QOSd0_g-4s2UsQoJfcphncWcLppvnpbKe-PMwB2K43EzjF0VN.js(?:\?_nc_x=Ij3Wp8lg5Kz))" as="script" crossorigin="anonymous" nonce="\w+" \/\>/gm.exec(html)?.at(1)
+    if (!script)
+        return undefined
+    
+    const content = (await axios.get(script)).data
+    if (!content)
+        return undefined
+    
+    const ASBD_ID = /\w+="(\d+)";\w+.ASBD_ID=\w+/gm.exec(content)?.at(1)
+    if (!ASBD_ID)
+        return undefined
+    
+    return parseInt(ASBD_ID)
+}
+
 export function getIGAppId(html: string): number | undefined {
     const content = Array.from(HTMLParser(html).querySelectorAll("script")).at(27)?.innerHTML
     if (!content)
