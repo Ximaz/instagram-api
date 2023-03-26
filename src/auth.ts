@@ -57,3 +57,11 @@ export function getIGAppId(html: string): number | undefined {
 
     return parseInt(appId);
 }
+
+export function getTargetId(html: string): number | undefined {
+    const targetId = /"props":{"id":"(\d+)"/gm.exec(html)?.at(1)
+    if (!targetId)
+        return undefined
+
+    return parseInt(targetId)
+}

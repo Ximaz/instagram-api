@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getIGAppId = exports.getIGABSDId = exports.getUserPage = void 0;
+exports.getTargetId = exports.getIGAppId = exports.getIGABSDId = exports.getUserPage = void 0;
 const node_html_parser_1 = __importDefault(require("node-html-parser"));
 const axios_1 = __importDefault(require("axios"));
 async function getUserPage(username) {
@@ -48,3 +48,10 @@ function getIGAppId(html) {
     return parseInt(appId);
 }
 exports.getIGAppId = getIGAppId;
+function getTargetId(html) {
+    const targetId = /"props":{"id":"(\d+)"/gm.exec(html)?.at(1);
+    if (!targetId)
+        return undefined;
+    return parseInt(targetId);
+}
+exports.getTargetId = getTargetId;
