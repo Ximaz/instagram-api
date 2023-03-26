@@ -29,7 +29,7 @@ async function getUserPage(username) {
     return (await axios_1.default.get(`https://www.instagram.com/${username}/`, { headers: defaultHeaders })).data;
 }
 async function getIGABSDId(html) {
-    const script = /\<link rel="preload" href="(https:\/\/static.cdninstagram.com\/rsrc.php\/.+\/epE5i0QOSd0_g-4s2UsQoJfcphncWcLppvnpbKe-PMwB2K43EzjF0VN.js(?:\?_nc_x=Ij3Wp8lg5Kz))" as="script" crossorigin="anonymous" nonce="\w+" \/\>/gm.exec(html)?.at(1);
+    const script = /https:\/\/static.cdninstagram.com\/rsrc.php\/.+\/epE5i0QOSd0_g-4s2UsQoJfcphncWcLppvnpbKe-PMwB2K43EzjF0VNXpYt2DgMBFx.js\?_nc_x=\w+/gm.exec(html)?.at(0);
     if (!script)
         return undefined;
     const content = (await axios_1.default.get(script)).data;
