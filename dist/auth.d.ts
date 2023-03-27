@@ -1,1 +1,2 @@
-export default function (target: string): Promise<object | undefined>;
+import { IContext } from "./types/IContext";
+export default function (target: string): Promise<IContext>;

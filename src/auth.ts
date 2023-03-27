@@ -9,6 +9,7 @@
  */
 
 import axios from "axios"
+import { IContext } from "./types/IContext"
 
 function getRandomInt(min: number, max: number): number {
     min = Math.ceil(min);
@@ -36,34 +37,51 @@ async function getUserPage(username: string): Promise<string> {
     return (await axios.get(`https://www.instagram.com/${username}/`, { headers: defaultHeaders })).data
 }
 
-async function getIGABSDId(html: string): Promise<number | undefined> {
+async function getMagicScript(html: string): Promise<string> {
     const script = /https:\/\/static.cdninstagram.com\/rsrc.php\/.+\/epE5i0QOSd0_g-4s2UsQoJfcphncWcLppvnpbKe-PMwB2K43EzjF0VNXpYt2DgMBFx.+js(?:\?_nc_x=\w+)/gm.exec(html)?.at(0)
     if (!script)
-        return undefined
+        throw new Error("Unable to find the magic script")
 
-    const content = (await axios.get(script)).data
-    if (!content)
-        return undefined
-    
-    const ASBD_ID = /\w+="(\d+)";\w+.ASBD_ID=\w+/gm.exec(content)?.at(1)
+    return (await axios.get(script)).data
+}
+
+function getIGABSDId(magicScript: string): number {
+    const ASBD_ID = /\w+="(\d+)";\w+.ASBD_ID=\w+/gm.exec(magicScript)?.at(1)
     if (!ASBD_ID)
-        return undefined
-    
+        throw new Error("Unable to find the ASBD ID.")
+
     return parseInt(ASBD_ID)
 }
 
-function getIGAppId(html: string): number | undefined {    
+function getQueries(magicScript: string): string[] {
+    const match = /^__d\("PolarisProfilePostsActions",\[["A-Za-z0-9\-\.,]+\],\(function\(.+\)\{"use strict";.+"([a-f0-9]{32})".+"([a-f0-9]{32})/gm.exec(magicScript)
+
+    if (!match)
+        throw new Error("Unable to find queries in magic script.")
+
+    const posts = match.at(1)
+    if (!posts)
+        throw new Error("Unable to find posts query hash.")
+
+    const highlights = match.at(2)
+    if (!highlights)
+        throw new Error("Unable to find highlights query hash.")
+    
+    return [posts, highlights]
+}
+
+function getIGAppId(html: string): number {
     const appId = /\"X\-IG\-App\-ID\":\"(\d+)\"/gm.exec(html)?.at(1)
     if (!appId)
-        return undefined
+        throw new Error("Unable to find the app ID.")
 
     return parseInt(appId);
 }
 
-function getTargetId(html: string): number | undefined {
+function getTargetId(html: string): number {
     const targetId = /"props":{"id":"(\d+)"/gm.exec(html)?.at(1)
     if (!targetId)
-        return undefined
+        throw new Error("Unable to find the target ID.")
 
     return parseInt(targetId)
 }
@@ -84,10 +102,10 @@ async function getIGWWWClaim(targetId: number, deviceId: string, ASBDId: number,
     return undefined
 }
 
-function getIgDeviceId(html: string): string | undefined {
+function getIgDeviceId(html: string): string {
     const did = /"_js_ig_did":{"value":"([A-F0-9\-]+)"/gm.exec(html)?.at(1)
     if (!did)
-        return undefined
+        throw new Error("Unable to find the device ID.")
     
     return did
 }
@@ -102,13 +120,15 @@ function buildXMid(): string {
     return token
 }
 
-export default async function (target: string): Promise<object | undefined> {
+export default async function (target: string): Promise<IContext> {
     const page = await getUserPage(target),
         target_id = getTargetId(page),
         ig_app_id = getIGAppId(page),
         ig_did = getIgDeviceId(page),
         ig_mid = buildXMid(),
-        ig_asbd_id = await getIGABSDId(page)
+        magicScript = await getMagicScript(page),
+        ig_asbd_id = getIGABSDId(magicScript),
+        queries = getQueries(magicScript)
 
     if (!target_id || !ig_app_id || !ig_did || !ig_asbd_id)
         throw new Error(`One of the required fields is missing : target_id (${target_id}), ig_app_id (${ig_app_id}), ig_did (${ig_did}), ig_asbd_id (${ig_asbd_id})`)
@@ -118,12 +138,18 @@ export default async function (target: string): Promise<object | undefined> {
         throw new Error("Unable to fetch the WWW-Claim value.")
 
     return {
-        ...defaultHeaders,
-        "X-Mid": ig_mid,
-        "X-IG-App-ID": ig_app_id.toString(),
-        "X-ASBD-ID": ig_asbd_id.toString(),
-        "X-IG-WWW-Claim": ig_www_claim,
-        "X-Web-Device-Id": ig_did,
-        "X-Requested-With": "XMLHttpRequest",
+        queries: {
+            posts: queries[0],
+            highlights: queries[1],
+        },
+        headers: {
+            ...defaultHeaders,
+            "X-Mid": ig_mid,
+            "X-IG-App-ID": ig_app_id.toString(),
+            "X-ASBD-ID": ig_asbd_id.toString(),
+            "X-IG-WWW-Claim": ig_www_claim,
+            "X-Web-Device-Id": ig_did,
+            "X-Requested-With": "XMLHttpRequest",
+        }
     }
 }
