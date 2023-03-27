@@ -3,7 +3,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const node_html_parser_1 = __importDefault(require("node-html-parser"));
 const axios_1 = __importDefault(require("axios"));
 function getRandomInt(min, max) {
     min = Math.ceil(min);
@@ -29,7 +28,7 @@ async function getUserPage(username) {
     return (await axios_1.default.get(`https://www.instagram.com/${username}/`, { headers: defaultHeaders })).data;
 }
 async function getIGABSDId(html) {
-    const script = /https:\/\/static.cdninstagram.com\/rsrc.php\/.+\/epE5i0QOSd0_g-4s2UsQoJfcphncWcLppvnpbKe-PMwB2K43EzjF0VNXpYt2DgMBFx.js\?_nc_x=\w+/gm.exec(html)?.at(0);
+    const script = /https:\/\/static.cdninstagram.com\/rsrc.php\/.+\/epE5i0QOSd0_g-4s2UsQoJfcphncWcLppvnpbKe-PMwB2K43EzjF0VNXpYt2DgMBFx.+js(?:\?_nc_x=\w+)/gm.exec(html)?.at(0);
     if (!script)
         return undefined;
     const content = (await axios_1.default.get(script)).data;
@@ -41,10 +40,7 @@ async function getIGABSDId(html) {
     return parseInt(ASBD_ID);
 }
 function getIGAppId(html) {
-    const content = Array.from((0, node_html_parser_1.default)(html).querySelectorAll("script")).at(27)?.innerHTML;
-    if (!content)
-        return undefined;
-    const appId = /\"X\-IG\-App\-ID\":\"(\d+)\"/gm.exec(content)?.at(1);
+    const appId = /\"X\-IG\-App\-ID\":\"(\d+)\"/gm.exec(html)?.at(1);
     if (!appId)
         return undefined;
     return parseInt(appId);

@@ -8,7 +8,6 @@
  * informations are stored into the HTML itself.
  */
 
-import HTMLParser from "node-html-parser"
 import axios from "axios"
 
 function getRandomInt(min: number, max: number): number {
@@ -38,10 +37,10 @@ async function getUserPage(username: string): Promise<string> {
 }
 
 async function getIGABSDId(html: string): Promise<number | undefined> {
-    const script = /https:\/\/static.cdninstagram.com\/rsrc.php\/.+\/epE5i0QOSd0_g-4s2UsQoJfcphncWcLppvnpbKe-PMwB2K43EzjF0VNXpYt2DgMBFx.js\?_nc_x=\w+/gm.exec(html)?.at(0)
+    const script = /https:\/\/static.cdninstagram.com\/rsrc.php\/.+\/epE5i0QOSd0_g-4s2UsQoJfcphncWcLppvnpbKe-PMwB2K43EzjF0VNXpYt2DgMBFx.+js(?:\?_nc_x=\w+)/gm.exec(html)?.at(0)
     if (!script)
         return undefined
-    
+
     const content = (await axios.get(script)).data
     if (!content)
         return undefined
@@ -53,12 +52,8 @@ async function getIGABSDId(html: string): Promise<number | undefined> {
     return parseInt(ASBD_ID)
 }
 
-function getIGAppId(html: string): number | undefined {
-    const content = Array.from(HTMLParser(html).querySelectorAll("script")).at(27)?.innerHTML
-    if (!content)
-        return undefined
-    
-    const appId = /\"X\-IG\-App\-ID\":\"(\d+)\"/gm.exec(content)?.at(1)
+function getIGAppId(html: string): number | undefined {    
+    const appId = /\"X\-IG\-App\-ID\":\"(\d+)\"/gm.exec(html)?.at(1)
     if (!appId)
         return undefined
 
