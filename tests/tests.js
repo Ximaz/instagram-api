@@ -1,4 +1,4 @@
-const IGAPI = require("./dist/index.js"),
+const IGAPI = require("../dist/index.js"),
     { writeFileSync } = require("fs")
     target = "sunnyrayyxo"
 
@@ -32,5 +32,5 @@ async function sleep(ms) {
 getContext(target).then(async (ctx) => {
     const user = await IGAPI.getUser(target, ctx),
         posts = await IGAPI.getUserPosts(user, ctx, { first: 12, after: "QVFEU1dIVmpxWVMxMm1DbjFnN01nNVRfSC1yWDFWQXBLX1NhNnlYZTU1Sy01QlZXQ09tNWxJdnhndXlNX1RaV3dlT0JVR0ZjUXRncnNqLXd0dVRncXVWeg==" })
-    posts.edge_owner_to_timeline_media.edges.forEach((p) => console.log(p.thumbnail_resources[0].src))
+    console.log(posts.edge_owner_to_timeline_media.edges)
 }).catch(console.error)

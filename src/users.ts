@@ -21,7 +21,6 @@ export async function getUserPosts(user: IUser, ctx: IContext, { first, after }:
     headers["Cookie"] = craftCookie(headers["X-CSRFToken"], ctx)
     delete headers["X-Web-Device-Id"]
     delete headers["X-Mid"]
-    console.log(headers)
     return (await axios.get(`https://www.instagram.com/graphql/query/?query_hash=${ctx.queries.posts}&variables=${variables}`, { headers })).data.data.user
 }
 

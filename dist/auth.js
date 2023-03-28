@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const axios_1 = __importDefault(require("axios"));
+const node_html_parser_1 = __importDefault(require("node-html-parser"));
 function getRandomInt(min, max) {
     min = Math.ceil(min);
     return Math.floor(Math.random() * (Math.floor(max) - min)) + min;
@@ -27,20 +28,20 @@ const defaultHeaders = {
 async function getUserPage(username) {
     return (await axios_1.default.get(`https://www.instagram.com/${username}/`, { headers: defaultHeaders })).data;
 }
-async function getMagicScript(html) {
-    const script = /https:\/\/static.cdninstagram.com\/rsrc.php\/.+\/epE5i0QOSd0_g-4s2UsQoJfcphncWcLppvnpbKe-PMwB2K43EzjF0VNXpYt2DgMBFx.+js(?:\?_nc_x=\w+)/gm.exec(html)?.at(0);
+async function getIGABSDId(html) {
+    const script = (0, node_html_parser_1.default)(html).querySelectorAll("script")[8]?.getAttribute("src");
     if (!script)
         throw new Error("Unable to find the magic script");
-    return (await axios_1.default.get(script)).data;
-}
-function getIGABSDId(magicScript) {
-    const ASBD_ID = /\w+="(\d+)";\w+.ASBD_ID=\w+/gm.exec(magicScript)?.at(1);
+    const magicScript = (await axios_1.default.get(script)).data, ASBD_ID = /\w+="(\d+)";\w+.ASBD_ID=\w+/gm.exec(magicScript)?.at(1);
     if (!ASBD_ID)
         throw new Error("Unable to find the ASBD ID.");
     return parseInt(ASBD_ID);
 }
-function getQueries(magicScript) {
-    const match = /^__d\("PolarisProfilePostsActions",\[["A-Za-z0-9\-\.,]+\],\(function\(.+\)\{"use strict";.+"([a-f0-9]{32})".+"([a-f0-9]{32})/gm.exec(magicScript);
+async function getQueries(html) {
+    const script = (0, node_html_parser_1.default)(html).querySelectorAll("link[rel=\"preload\"][as=\"script\"]")[1]?.getAttribute("href");
+    if (!script)
+        throw new Error("Unable to find the magic script");
+    const magicScript = (await axios_1.default.get(script)).data, match = /^__d\("PolarisProfilePostsActions",\[["A-Za-z0-9\-\.,]+\],\(function\(.+\)\{"use strict";.+"([a-f0-9]{32})".+"([a-f0-9]{32})/gm.exec(magicScript);
     if (!match)
         throw new Error("Unable to find queries in magic script.");
     const posts = match.at(1);
@@ -91,7 +92,7 @@ function buildXMid() {
     return token;
 }
 async function default_1(target) {
-    const page = await getUserPage(target), target_id = getTargetId(page), ig_app_id = getIGAppId(page), ig_did = getIgDeviceId(page), ig_mid = buildXMid(), magicScript = await getMagicScript(page), ig_asbd_id = getIGABSDId(magicScript), queries = getQueries(magicScript);
+    const page = await getUserPage(target), target_id = getTargetId(page), ig_app_id = getIGAppId(page), ig_did = getIgDeviceId(page), ig_mid = buildXMid(), ig_asbd_id = await getIGABSDId(page), queries = await getQueries(page);
     if (!target_id || !ig_app_id || !ig_did || !ig_asbd_id)
         throw new Error(`One of the required fields is missing : target_id (${target_id}), ig_app_id (${ig_app_id}), ig_did (${ig_did}), ig_asbd_id (${ig_asbd_id})`);
     const ig_www_claim = await getIGWWWClaim(target_id, ig_did, ig_asbd_id, ig_app_id, ig_mid);

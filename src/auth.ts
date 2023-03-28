@@ -9,6 +9,7 @@
  */
 
 import axios from "axios"
+import HTMLParser from "node-html-parser"
 import { IContext } from "./types/IContext"
 
 function getRandomInt(min: number, max: number): number {
@@ -37,24 +38,26 @@ async function getUserPage(username: string): Promise<string> {
     return (await axios.get(`https://www.instagram.com/${username}/`, { headers: defaultHeaders })).data
 }
 
-async function getMagicScript(html: string): Promise<string> {
-    const script = /https:\/\/static.cdninstagram.com\/rsrc.php\/.+\/epE5i0QOSd0_g-4s2UsQoJfcphncWcLppvnpbKe-PMwB2K43EzjF0VNXpYt2DgMBFx.+js(?:\?_nc_x=\w+)/gm.exec(html)?.at(0)
+async function getIGABSDId(html: string): Promise<number> {
+    const script = HTMLParser(html).querySelectorAll("script")[8]?.getAttribute("src")
     if (!script)
         throw new Error("Unable to find the magic script")
 
-    return (await axios.get(script)).data
-}
-
-function getIGABSDId(magicScript: string): number {
-    const ASBD_ID = /\w+="(\d+)";\w+.ASBD_ID=\w+/gm.exec(magicScript)?.at(1)
+    const magicScript = (await axios.get(script)).data,
+        ASBD_ID = /\w+="(\d+)";\w+.ASBD_ID=\w+/gm.exec(magicScript)?.at(1)
     if (!ASBD_ID)
         throw new Error("Unable to find the ASBD ID.")
 
     return parseInt(ASBD_ID)
 }
 
-function getQueries(magicScript: string): string[] {
-    const match = /^__d\("PolarisProfilePostsActions",\[["A-Za-z0-9\-\.,]+\],\(function\(.+\)\{"use strict";.+"([a-f0-9]{32})".+"([a-f0-9]{32})/gm.exec(magicScript)
+async function getQueries(html: string): Promise<string[]> {
+    const script = HTMLParser(html).querySelectorAll("link[rel=\"preload\"][as=\"script\"]")[1]?.getAttribute("href")
+    if (!script)
+        throw new Error("Unable to find the magic script")
+
+    const magicScript = (await axios.get(script)).data,
+        match = /^__d\("PolarisProfilePostsActions",\[["A-Za-z0-9\-\.,]+\],\(function\(.+\)\{"use strict";.+"([a-f0-9]{32})".+"([a-f0-9]{32})/gm.exec(magicScript)
 
     if (!match)
         throw new Error("Unable to find queries in magic script.")
@@ -126,9 +129,8 @@ export default async function (target: string): Promise<IContext> {
         ig_app_id = getIGAppId(page),
         ig_did = getIgDeviceId(page),
         ig_mid = buildXMid(),
-        magicScript = await getMagicScript(page),
-        ig_asbd_id = getIGABSDId(magicScript),
-        queries = getQueries(magicScript)
+        ig_asbd_id = await getIGABSDId(page),
+        queries = await getQueries(page)
 
     if (!target_id || !ig_app_id || !ig_did || !ig_asbd_id)
         throw new Error(`One of the required fields is missing : target_id (${target_id}), ig_app_id (${ig_app_id}), ig_did (${ig_did}), ig_asbd_id (${ig_asbd_id})`)
