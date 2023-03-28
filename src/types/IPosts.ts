@@ -40,7 +40,7 @@ declare interface IPostSidecarChild {
     }
 }
 
-declare interface IPost {
+export interface IPost {
     __typename: string
     id: string
     gating_info: null

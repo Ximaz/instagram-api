@@ -10,7 +10,7 @@ declare interface IPostNodeCaption {
 }
 declare interface IPostSidecarChild {
     node: {
-        __typename: string;
+        __typename: "GraphSidecar" | "GraphImage" | "GraphVideo";
         id: string;
         gating_info: null;
         fact_check_overall_rating: null;
@@ -37,7 +37,7 @@ declare interface IPostSidecarChild {
         accessibility_caption: null;
     };
 }
-declare interface IPost {
+export interface IPost {
     __typename: string;
     id: string;
     gating_info: null;

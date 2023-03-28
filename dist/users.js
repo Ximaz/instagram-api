@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getUserHighlights = exports.getUserPosts = exports.getUser = void 0;
+exports.getUserHighlights = exports.getAllUserPosts = exports.getUserPosts = exports.getUser = void 0;
 const axios_1 = __importDefault(require("axios"));
 function craftCookie(csrftoken, ctx) {
     return `csrftoken=${csrftoken}; mid=${ctx.headers["X-Mid"]}; ig_did=${ctx.headers["X-Web-Device-Id"]}`;
@@ -22,6 +22,24 @@ async function getUserPosts(user, ctx, { first, after }) {
     return (await axios_1.default.get(`https://www.instagram.com/graphql/query/?query_hash=${ctx.queries.posts}&variables=${variables}`, { headers })).data.data.user;
 }
 exports.getUserPosts = getUserPosts;
+async function getAllUserPosts(user, ctx, { first, after }) {
+    const posts = [];
+    let fetch = null;
+    do {
+        try {
+            fetch = await getUserPosts(user, ctx, { first, after });
+        }
+        catch (e) {
+            console.error(e);
+            console.warn("Got Ratelimited");
+            break;
+        }
+        after = fetch.edge_owner_to_timeline_media.page_info.end_cursor;
+        posts.push(...fetch.edge_owner_to_timeline_media.edges);
+    } while (fetch.edge_owner_to_timeline_media.page_info.has_next_page);
+    return posts;
+}
+exports.getAllUserPosts = getAllUserPosts;
 async function getUserHighlights(user, ctx) {
     throw new Error("This function requires to be logged in, not supported yet.");
     const variables = encodeURIComponent(JSON.stringify({

@@ -1,8 +1,15 @@
 import axios from "axios"
 import { IContext } from "./types/IContext"
 import { IHighlights } from "./types/IHighlights"
-import { IPosts } from "./types/IPosts"
+import { IPosts, IPost } from "./types/IPosts"
 import { IUser } from "./types/IUser"
+
+/**
+ * 
+ * GraphQL Bucket :
+ * Posts : 68 / (1 hour ?)
+ * Highlights : ? / (1 hour ?)
+ */
 
 function craftCookie(csrftoken: string, ctx: IContext): string {
     return `csrftoken=${csrftoken}; mid=${ctx.headers["X-Mid"]}; ig_did=${ctx.headers["X-Web-Device-Id"]}`
@@ -22,6 +29,24 @@ export async function getUserPosts(user: IUser, ctx: IContext, { first, after }:
     delete headers["X-Web-Device-Id"]
     delete headers["X-Mid"]
     return (await axios.get(`https://www.instagram.com/graphql/query/?query_hash=${ctx.queries.posts}&variables=${variables}`, { headers })).data.data.user
+}
+
+export async function getAllUserPosts(user: IUser, ctx: IContext, { first, after }: { first: number, after: string | null }): Promise<IPost[]> {
+    const posts: IPost[] = []
+    let fetch = null
+
+    do {
+        try {
+            fetch = await getUserPosts(user, ctx, { first, after })
+        } catch (e) {
+            console.error(e)
+            console.warn("Got Ratelimited")
+            break;
+        }
+        after = fetch.edge_owner_to_timeline_media.page_info.end_cursor
+        posts.push(...fetch.edge_owner_to_timeline_media.edges)
+    } while (fetch.edge_owner_to_timeline_media.page_info.has_next_page)
+    return posts
 }
 
 export async function getUserHighlights(user: IUser, ctx: IContext): Promise<IHighlights> {

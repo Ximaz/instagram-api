@@ -23,14 +23,9 @@ async function getContext(target) {
     return ctx
 }
 
-async function sleep(ms) {
-    return new Promise((res, rej) => {
-        const t = setTimeout(() => { clearInterval(t); res()}, ms)
-    })
-}
-
 getContext(target).then(async (ctx) => {
     const user = await IGAPI.getUser(target, ctx),
-        posts = await IGAPI.getUserPosts(user, ctx, { first: 12, after: "QVFEU1dIVmpxWVMxMm1DbjFnN01nNVRfSC1yWDFWQXBLX1NhNnlYZTU1Sy01QlZXQ09tNWxJdnhndXlNX1RaV3dlT0JVR0ZjUXRncnNqLXd0dVRncXVWeg==" })
-    console.log(posts.edge_owner_to_timeline_media.edges)
+        posts = await IGAPI.getAllUserPosts(user, ctx, { first: 12, after: null })
+
+    writeFileSync("output.json", JSON.stringify(posts), { encoding: "utf-8", flag: "w+" })
 }).catch(console.error)
