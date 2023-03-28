@@ -7,7 +7,8 @@ import { IUser } from "./types/IUser"
 /**
  * 
  * GraphQL Bucket :
- * Posts : 68 / (1 hour ?)
+ * Posts : The Bucket seems to reach it's limit for 68 fast requests.
+ *         The Bucket seems to evacuate 1 request per 15 minutes
  * Highlights : ? / (1 hour ?)
  */
 
