@@ -17,6 +17,10 @@ function getRandomInt(min: number, max: number): number {
     return Math.floor(Math.random() * (Math.floor(max) - min)) + min;
 }
 
+function craftCookie(headers: any): string {
+    return `csrftoken=${headers["X-CSRFToken"]}; mid=${headers["X-Mid"]}; ig_did=${headers["X-Web-Device-Id"]}`
+}
+
 const defaultHeaders = {
     "Host": "www.instagram.com",
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/110.0",
@@ -71,6 +75,14 @@ async function getQueries(html: string): Promise<string[]> {
         throw new Error("Unable to find highlights query hash.")
     
     return [posts, highlights]
+}
+
+function getCSRFToken(html: string): string {
+    const csrfToken = /\"csrf_token\":\"(\w+)\"/gm.exec(html)?.at(1)
+    if (!csrfToken)
+        throw new Error("Unable to find CSRF token.")
+
+    return csrfToken
 }
 
 function getIGAppId(html: string): number {
@@ -128,6 +140,7 @@ export default async function (target: string): Promise<IContext> {
         target_id = getTargetId(page),
         ig_app_id = getIGAppId(page),
         ig_did = getIgDeviceId(page),
+        csrftoken = getCSRFToken(page),
         ig_mid = buildXMid(),
         ig_asbd_id = await getIGABSDId(page),
         queries = await getQueries(page)
@@ -139,19 +152,24 @@ export default async function (target: string): Promise<IContext> {
     if (!ig_www_claim)
         throw new Error("Unable to fetch the WWW-Claim value.")
 
+    const headers = {
+        ...defaultHeaders,
+        "X-Mid": ig_mid,
+        "X-IG-App-ID": ig_app_id.toString(),
+        "X-ASBD-ID": ig_asbd_id.toString(),
+        "X-IG-WWW-Claim": ig_www_claim,
+        "X-Web-Device-Id": ig_did,
+        "X-Requested-With": "XMLHttpRequest",
+        "X-CSRFToken": csrftoken,
+        "Referer": `https://www.instagram.com/${target}/`,
+        "Cookie": ""
+    }
+    headers["Cookie"] = craftCookie(headers)
     return {
         queries: {
             posts: queries[0],
             highlights: queries[1],
         },
-        headers: {
-            ...defaultHeaders,
-            "X-Mid": ig_mid,
-            "X-IG-App-ID": ig_app_id.toString(),
-            "X-ASBD-ID": ig_asbd_id.toString(),
-            "X-IG-WWW-Claim": ig_www_claim,
-            "X-Web-Device-Id": ig_did,
-            "X-Requested-With": "XMLHttpRequest",
-        }
+        headers
     }
 }

@@ -9,6 +9,9 @@ function getRandomInt(min, max) {
     min = Math.ceil(min);
     return Math.floor(Math.random() * (Math.floor(max) - min)) + min;
 }
+function craftCookie(headers) {
+    return `csrftoken=${headers["X-CSRFToken"]}; mid=${headers["X-Mid"]}; ig_did=${headers["X-Web-Device-Id"]}`;
+}
 const defaultHeaders = {
     "Host": "www.instagram.com",
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/110.0",
@@ -52,6 +55,12 @@ async function getQueries(html) {
         throw new Error("Unable to find highlights query hash.");
     return [posts, highlights];
 }
+function getCSRFToken(html) {
+    const csrfToken = /\"csrf_token\":\"(\w+)\"/gm.exec(html)?.at(1);
+    if (!csrfToken)
+        throw new Error("Unable to find CSRF token.");
+    return csrfToken;
+}
 function getIGAppId(html) {
     const appId = /\"X\-IG\-App\-ID\":\"(\d+)\"/gm.exec(html)?.at(1);
     if (!appId)
@@ -92,26 +101,31 @@ function buildXMid() {
     return token;
 }
 async function default_1(target) {
-    const page = await getUserPage(target), target_id = getTargetId(page), ig_app_id = getIGAppId(page), ig_did = getIgDeviceId(page), ig_mid = buildXMid(), ig_asbd_id = await getIGABSDId(page), queries = await getQueries(page);
+    const page = await getUserPage(target), target_id = getTargetId(page), ig_app_id = getIGAppId(page), ig_did = getIgDeviceId(page), csrftoken = getCSRFToken(page), ig_mid = buildXMid(), ig_asbd_id = await getIGABSDId(page), queries = await getQueries(page);
     if (!target_id || !ig_app_id || !ig_did || !ig_asbd_id)
         throw new Error(`One of the required fields is missing : target_id (${target_id}), ig_app_id (${ig_app_id}), ig_did (${ig_did}), ig_asbd_id (${ig_asbd_id})`);
     const ig_www_claim = await getIGWWWClaim(target_id, ig_did, ig_asbd_id, ig_app_id, ig_mid);
     if (!ig_www_claim)
         throw new Error("Unable to fetch the WWW-Claim value.");
+    const headers = {
+        ...defaultHeaders,
+        "X-Mid": ig_mid,
+        "X-IG-App-ID": ig_app_id.toString(),
+        "X-ASBD-ID": ig_asbd_id.toString(),
+        "X-IG-WWW-Claim": ig_www_claim,
+        "X-Web-Device-Id": ig_did,
+        "X-Requested-With": "XMLHttpRequest",
+        "X-CSRFToken": csrftoken,
+        "Referer": `https://www.instagram.com/${target}/`,
+        "Cookie": ""
+    };
+    headers["Cookie"] = craftCookie(headers);
     return {
         queries: {
             posts: queries[0],
             highlights: queries[1],
         },
-        headers: {
-            ...defaultHeaders,
-            "X-Mid": ig_mid,
-            "X-IG-App-ID": ig_app_id.toString(),
-            "X-ASBD-ID": ig_asbd_id.toString(),
-            "X-IG-WWW-Claim": ig_www_claim,
-            "X-Web-Device-Id": ig_did,
-            "X-Requested-With": "XMLHttpRequest",
-        }
+        headers
     };
 }
 exports.default = default_1;
