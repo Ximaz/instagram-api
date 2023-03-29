@@ -3,7 +3,7 @@
 This project is an Instagram API guest-oriented, meaning you can perform actions of data collection without having to register. However, you may be facing some Ratelimits, so I recommend you to put some delay between operations.
 
 ## Licence
-Licence can be found at ``LICENCE``, it's ``GNU GPLv3``****.
+Licence can be found at ``LICENCE``, it's ``GNU GPLv3``.
 
 ## Documentation
 
@@ -12,7 +12,7 @@ Code form ``tests/tests.js`` :
 
 ```js
 const IGAPI = require("../dist/index.js"),
-    { writeFileSync } = require("fs")
+    { writeFileSync } = require("fs"),
     target = "sunnyrayyxo" // Change to your target.
 
 /**
@@ -25,22 +25,27 @@ async function getContext(target) {
     let ctx = null
 
     try {
-        return require(ctxFilename) // Tries to read the context from ctx path
+        // Tries to read the context from ctx path
+        return require(ctxFilename)
     } catch (e) {
-        ctx = await IGAPI.auth(target) // If not found, creating a new ctx
+        // If not found, creating a new ctx
+        ctx = await IGAPI.auth(target)
     }
     try {
         writeFileSync(ctxFilename, JSON.stringify(ctx), { encoding: "utf-8", flag: "w+" })
     } catch (e1) {
-        console.warn(`Unable to save the context at ${ctxFilename}. Please, make sure nodejs has permissions to write in this path.`)
+        console.warn(`Unable to save the context at ${ctxFilename}.`)
         console.error(e1)
     }
     return ctx
 }
 
 getContext(target).then(async (ctx) => {
-    const user = await IGAPI.getUser(target, ctx), // Fetch the User object using the context.
-        posts = await IGAPI.getUserPosts(user, ctx, { first: 12, after: null }) // Fetch first 12 user's posts.
+    // Fetch the User object using the context.
+    const user = await IGAPI.getUser(target, ctx)
+    
+    // Fetch first 12 user's posts.
+    const posts = await IGAPI.getUserPosts(user, ctx, { first: 12, after: null })
 
     // Write the posts result into "output_posts.json" file.
     writeFileSync("output_posts.json", JSON.stringify(posts), { encoding: "utf-8", flag: "w+" })

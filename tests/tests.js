@@ -1,6 +1,6 @@
 const IGAPI = require("../dist/index.js"),
-    { writeFileSync } = require("fs")
-    target = "sunnyrayyxo"
+    { writeFileSync } = require("fs"),
+    target = "sunnyrayyxo" // Change to your target.
 
 /**
  * 
@@ -12,22 +12,28 @@ async function getContext(target) {
     let ctx = null
 
     try {
+        // Tries to read the context from ctx path
         return require(ctxFilename)
     } catch (e) {
+        // If not found, creating a new ctx
         ctx = await IGAPI.auth(target)
     }
     try {
         writeFileSync(ctxFilename, JSON.stringify(ctx), { encoding: "utf-8", flag: "w+" })
     } catch (e1) {
-        console.warn(`Unable to save the context at ${ctxFilename}. Please, make sure nodejs has permissions to write in this path.`)
+        console.warn(`Unable to save the context at ${ctxFilename}.`)
         console.error(e1)
     }
     return ctx
 }
 
 getContext(target).then(async (ctx) => {
-    const user = await IGAPI.getUser(target, ctx),
-        posts = await IGAPI.getAllUserPosts(user, ctx, { first: 12, after: null })
+    // Fetch the User object using the context.
+    const user = await IGAPI.getUser(target, ctx)
+    
+    // Fetch first 12 user's posts.
+    const posts = await IGAPI.getUserPosts(user, ctx, { first: 12, after: null })
 
+    // Write the posts result into "output_posts.json" file.
     writeFileSync("output_posts.json", JSON.stringify(posts), { encoding: "utf-8", flag: "w+" })
 }).catch(console.error)
