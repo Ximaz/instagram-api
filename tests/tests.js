@@ -4,7 +4,7 @@ const IGAPI = require("../dist/index.js"),
 
 /**
  * 
- * @param {String} target THe target to fetch data from.
+ * @param {String} target The target to fetch data from.
  * @returns {Promise<IContext>} The found context.
  */
 async function getContext(target) {
