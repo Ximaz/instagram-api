@@ -8,7 +8,7 @@ const IGAPI = require("../dist/index.js"),
  * @returns {Promise<IContext>} The found context.
  */
 async function getContext(target) {
-    const ctxFilename = `./ctx/${target}.json`
+    const ctxFilename = `../ctx/${target}.json`
     let ctx = null
     try {
         return require(ctxFilename)
