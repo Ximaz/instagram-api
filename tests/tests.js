@@ -17,8 +17,13 @@ async function getContext(target) {
     }
     try {
         writeFileSync(ctxFilename, JSON.stringify(ctx), { encoding: "utf-8", flag: "w+" })
-    } catch (e) {
-        console.warn(`Unable to save the context at ${ctxFilename}. Please, make sure nodejs has permissions to write in this path.`)
+    } catch (e1) {
+        try {
+            writeFileSync(ctxFilename, JSON.stringify(ctx), { encoding: "utf-8", flag: "a" })
+        } catch (e2) {
+            console.warn(`Unable to save the context at ${ctxFilename}. Please, make sure nodejs has permissions to write in this path.`)
+            console.error(e2)
+        }
     }
     return ctx
 }

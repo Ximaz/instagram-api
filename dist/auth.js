@@ -32,7 +32,7 @@ async function getUserPage(username) {
     return (await axios_1.default.get(`https://www.instagram.com/${username}/`, { headers: defaultHeaders })).data;
 }
 async function getIGABSDId(html) {
-    const script = (0, node_html_parser_1.default)(html).querySelectorAll("script")[8]?.getAttribute("src");
+    const script = (0, node_html_parser_1.default)(html).querySelectorAll("link[rel=\"preload\"][as=\"script\"]")[1]?.getAttribute("href");
     if (!script)
         throw new Error("Unable to find the magic script");
     const magicScript = (await axios_1.default.get(script)).data, ASBD_ID = /\w+="(\d+)";\w+.ASBD_ID=\w+/gm.exec(magicScript)?.at(1);
@@ -41,7 +41,7 @@ async function getIGABSDId(html) {
     return parseInt(ASBD_ID);
 }
 async function getQueries(html) {
-    const script = (0, node_html_parser_1.default)(html).querySelectorAll("link[rel=\"preload\"][as=\"script\"]")[1]?.getAttribute("href");
+    const script = (0, node_html_parser_1.default)(html).querySelectorAll("link[rel=\"preload\"][as=\"script\"]")[2]?.getAttribute("href");
     if (!script)
         throw new Error("Unable to find the magic script");
     const magicScript = (await axios_1.default.get(script)).data, match = /^__d\("PolarisProfilePostsActions",\[["A-Za-z0-9\-\.,]+\],\(function\(.+\)\{"use strict";.+"([a-f0-9]{32})".+"([a-f0-9]{32})/gm.exec(magicScript);
@@ -56,7 +56,7 @@ async function getQueries(html) {
     return [posts, highlights];
 }
 function getCSRFToken(html) {
-    const csrfToken = /\"csrf_token\":\"(\w+)\"/gm.exec(html)?.at(1);
+    const csrfToken = /\\"csrf_token\\":\\"(\w+)\\"/gm.exec(html)?.at(1);
     if (!csrfToken)
         throw new Error("Unable to find CSRF token.");
     return csrfToken;

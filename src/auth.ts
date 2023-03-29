@@ -43,7 +43,7 @@ async function getUserPage(username: string): Promise<string> {
 }
 
 async function getIGABSDId(html: string): Promise<number> {
-    const script = HTMLParser(html).querySelectorAll("script")[8]?.getAttribute("src")
+    const script = HTMLParser(html).querySelectorAll("link[rel=\"preload\"][as=\"script\"]")[1]?.getAttribute("href")
     if (!script)
         throw new Error("Unable to find the magic script")
 
@@ -56,7 +56,7 @@ async function getIGABSDId(html: string): Promise<number> {
 }
 
 async function getQueries(html: string): Promise<string[]> {
-    const script = HTMLParser(html).querySelectorAll("link[rel=\"preload\"][as=\"script\"]")[1]?.getAttribute("href")
+    const script = HTMLParser(html).querySelectorAll("link[rel=\"preload\"][as=\"script\"]")[2]?.getAttribute("href")
     if (!script)
         throw new Error("Unable to find the magic script")
 
@@ -78,7 +78,7 @@ async function getQueries(html: string): Promise<string[]> {
 }
 
 function getCSRFToken(html: string): string {
-    const csrfToken = /\"csrf_token\":\"(\w+)\"/gm.exec(html)?.at(1)
+    const csrfToken = /\\"csrf_token\\":\\"(\w+)\\"/gm.exec(html)?.at(1)
     if (!csrfToken)
         throw new Error("Unable to find CSRF token.")
 
