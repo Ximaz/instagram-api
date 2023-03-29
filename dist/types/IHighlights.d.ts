@@ -1,6 +1,6 @@
 declare interface IHighlightNode {
     node: {
-        __typename: string;
+        __typename: "GraphHighlightReel";
         id: string;
         cover_media: {
             thumbnail_src: string;

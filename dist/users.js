@@ -70,7 +70,7 @@ async function getUserHighlights(user, ctx) {
         include_logged_out_extras: true,
         include_highlight_reels: true,
         include_live_status: false
-    })), headers = ctx.headers;
+    })), { headers } = ctx;
     return (await axios_1.default.get(`https://www.instagram.com/graphql/query/?query_hash=${ctx.queries.highlights}&variables=${variables}`, { headers })).data.data.user;
 }
 exports.getUserHighlights = getUserHighlights;

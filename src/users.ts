@@ -83,7 +83,7 @@ export async function getUserHighlights(user: IUser, ctx: IContext): Promise<IHi
         include_highlight_reels: true,
         include_live_status: false
     })),
-        headers = ctx.headers
+        { headers } = ctx
 
     return (await axios.get(`https://www.instagram.com/graphql/query/?query_hash=${ctx.queries.highlights}&variables=${variables}`, { headers })).data.data.user
 }
