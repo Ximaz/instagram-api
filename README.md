@@ -2,9 +2,12 @@
 
 This project is an Instagram API guest-oriented, meaning you can perform actions of data collection without having to register. However, you may be facing some Ratelimits, so I recommend you to put some delay between operations.
 
+## Licence
+Licence can be found at ``LICENCE``, it's ``GNU GPLv3``.
+
 ## Documentation
 
-##### Getting Started
+### Getting Started
 Code form ``tests/tests.js`` :
 
 ```js
@@ -44,47 +47,47 @@ getContext(target).then(async (ctx) => {
 }).catch(console.error)
 ```
 
-##### Methods
+### Methods
 
 ``IGAPI.auth(target: string): Promise<IContext>`` :
 
 This function is MENDATORY before trying to use the API, because it's return value correspond to all the context required to use the API. It contains required headers, and two queries hash representing two endpoints of Instagram's GraphQL API.
 
-<br><hr><br>
+<hr>
 
 ``IGAPI.getUser(username: string, ctx: IContext): Promise<IUser>`` :
 
 This function allows you to fetch pretty much all data around the user account you're trying to access data. This function is also mendatory in order to use the API correctly because it's return value is a IUser object which is required for all other functions of the API.
 
-<br><hr><br>
+<hr>
 
 ``IGAPI.getUserPosts(user: IUser, ctx: IContext, { first: 12, after: null }): Promise<IPosts>`` :
 
 This function allows you to fetch ``first`` posts starting from ``after``. If ``after`` is set to ``null``, fetch the ``first`` posts starting from the top of the account. **MAY TRIGGER THE RATELIMIT SYSTEM !**
 
-<br><hr><br>
+<hr>
 
 ``IGAPI.getAllUserPosts(user: IUser, ctx: IContext, { first: 12, after: null }): Promise<IPost[]>`` :
 
 This function allows you to *try* to fetch all posts, ``first`` posts per ``first`` posts, starting from ``after``. It quite the same thing as ``IGAPI.getUserPosts`` but it handles ``after`` itself, so you just get a whole bunch of posts. **MAY TRIGGER THE RATELIMIT SYSTEM !**
 
-<br><hr><br>
+<hr>
 
 ``IGAPI.getUserReels(user: IUser, ctx: IContext, { page_size: 12, max_id: null }): Promise<IReels>`` :
 
 This function allows you to fetch ``page_size`` reels starting from ``after``. If ``after`` is set to ``null``, fetch the ``page_size`` reels starting from the top of the account. **MAY TRIGGER THE RATELIMIT SYSTEM !**
 
-<br><hr><br>
+<hr>
 
 ``IGAPI.getAllUserReels(user: IUser, ctx: IContext, { page_size: 12, max_id: null }): Promise<IReel[]>`` :
 
 This function allows you to *try* to fetch all reels, ``page_size`` reels per ``page_size`` reels, starting from ``max_id``. It quite the same thing as ``IGAPI.getUserReels`` but it handles ``max_id`` itself, so you just get a whole bunch of reels. **MAY TRIGGER THE RATELIMIT SYSTEM !**
 
-<br><hr><br>
+<hr>
 
 ``IGAPI.getUserHighlights(user: IUser, ctx: IContext): Promise<IHighlights>`` :
 
 This function allows you to fetch highlights. **MAY TRIGGER THE RATELIMIT SYSTEM !**
 
-##### Types
+### Types
 All types' definitions can be found at ``src/types/<type>.ts``
