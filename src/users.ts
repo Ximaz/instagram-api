@@ -2,6 +2,7 @@ import axios from "axios"
 import { IContext } from "./types/IContext"
 import { IHighlights } from "./types/IHighlights"
 import { IPosts, IPost } from "./types/IPosts"
+import { IReel, IReels } from "./types/IReels"
 import { IUser } from "./types/IUser"
 
 /**
@@ -42,7 +43,7 @@ export async function getAllUserPosts(user: IUser, ctx: IContext, { first, after
         } catch (e) {
             console.error(e)
             console.warn("Got Ratelimited")
-            break;
+            break
         }
         after = fetch.edge_owner_to_timeline_media.page_info.end_cursor
         posts.push(...fetch.edge_owner_to_timeline_media.edges)
@@ -50,8 +51,43 @@ export async function getAllUserPosts(user: IUser, ctx: IContext, { first, after
     return posts
 }
 
+export async function getUserReels(user: IUser, ctx: IContext, { page_size, max_id }: { page_size: number, max_id: string | null }): Promise<IReels> {
+    const headers = ctx.headers
+
+    headers["Referer"] = `https://www.instagram.com/${user.username}/`
+    headers["X-CSRFToken"] = "08bpX105Hm2jA0BmYDuO3WsANDXxVpWf"
+    headers["Cookie"] = craftCookie(headers["X-CSRFToken"], ctx)
+    headers["Content-Type"] = "application/x-www-form-urlencoded"
+    delete headers["X-Web-Device-Id"]
+    delete headers["X-Mid"]
+    return (await axios.post(`https://www.instagram.com/api/v1/clips/user/`, { 
+        target_user_id:	user.id,
+        page_size: page_size.toString(),
+        max_id,
+        include_feed_video: "true"
+     }, { headers })).data
+
+}
+
+export async function getAllUserReels(user: IUser, ctx: IContext, { page_size, max_id }: { page_size: number, max_id: string | null }): Promise<IReel[]> {
+    const posts: IReel[] = []
+    let fetch = null
+
+    do {
+        try {
+            fetch = await getUserReels(user, ctx, { page_size, max_id })
+        } catch (e) {
+            console.error(e)
+            console.warn("Got Ratelimited")
+            break
+        }
+        max_id = fetch.paging_info.max_id
+        posts.push(...fetch.items)
+    } while (fetch.paging_info.more_available)
+    return posts
+}
+
 export async function getUserHighlights(user: IUser, ctx: IContext): Promise<IHighlights> {
-    throw new Error("This function requires to be logged in, not supported yet.")
     const variables = encodeURIComponent(JSON.stringify({
         user_id: user.id,
         include_chaining: false,

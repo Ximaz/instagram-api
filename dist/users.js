@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getUserHighlights = exports.getAllUserPosts = exports.getUserPosts = exports.getUser = void 0;
+exports.getUserHighlights = exports.getAllUserReels = exports.getUserReels = exports.getAllUserPosts = exports.getUserPosts = exports.getUser = void 0;
 const axios_1 = __importDefault(require("axios"));
 function craftCookie(csrftoken, ctx) {
     return `csrftoken=${csrftoken}; mid=${ctx.headers["X-Mid"]}; ig_did=${ctx.headers["X-Web-Device-Id"]}`;
@@ -40,8 +40,41 @@ async function getAllUserPosts(user, ctx, { first, after }) {
     return posts;
 }
 exports.getAllUserPosts = getAllUserPosts;
+async function getUserReels(user, ctx, { page_size, max_id }) {
+    const headers = ctx.headers;
+    headers["Referer"] = `https://www.instagram.com/${user.username}/`;
+    headers["X-CSRFToken"] = "08bpX105Hm2jA0BmYDuO3WsANDXxVpWf";
+    headers["Cookie"] = craftCookie(headers["X-CSRFToken"], ctx);
+    headers["Content-Type"] = "application/x-www-form-urlencoded";
+    delete headers["X-Web-Device-Id"];
+    delete headers["X-Mid"];
+    return (await axios_1.default.post(`https://www.instagram.com/api/v1/clips/user/`, {
+        target_user_id: user.id,
+        page_size: page_size.toString(),
+        max_id,
+        include_feed_video: "true"
+    }, { headers })).data;
+}
+exports.getUserReels = getUserReels;
+async function getAllUserReels(user, ctx, { page_size, max_id }) {
+    const posts = [];
+    let fetch = null;
+    do {
+        try {
+            fetch = await getUserReels(user, ctx, { page_size, max_id });
+        }
+        catch (e) {
+            console.error(e);
+            console.warn("Got Ratelimited");
+            break;
+        }
+        max_id = fetch.paging_info.max_id;
+        posts.push(...fetch.items);
+    } while (fetch.paging_info.more_available);
+    return posts;
+}
+exports.getAllUserReels = getAllUserReels;
 async function getUserHighlights(user, ctx) {
-    throw new Error("This function requires to be logged in, not supported yet.");
     const variables = encodeURIComponent(JSON.stringify({
         user_id: user.id,
         include_chaining: false,

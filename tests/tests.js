@@ -25,7 +25,7 @@ async function getContext(target) {
 
 getContext(target).then(async (ctx) => {
     const user = await IGAPI.getUser(target, ctx),
-        posts = await IGAPI.getAllUserPosts(user, ctx, { first: 12, after: null })
+        reels = await IGAPI.getAllUserReels(user, ctx, { page_size: 12, max_id: null })
 
-    writeFileSync("output.json", JSON.stringify(posts), { encoding: "utf-8", flag: "w+" })
+    writeFileSync("output_reels.json", JSON.stringify(reels), { encoding: "utf-8", flag: "w+" })
 }).catch(console.error)
