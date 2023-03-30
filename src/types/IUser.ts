@@ -26,7 +26,7 @@ declare interface IUserTLMediaPinnedForUser {
 
 declare interface IUserTLMediaSidecarChild {
     node: {
-        __typename: string
+        __typename: "GraphImage" | "GraphVideo"
         id: string
         shortcode: string
         dimensions: {
@@ -58,7 +58,7 @@ declare interface IUserTLMediaSidecarChild {
 
 declare interface IUserTLMedia {
     node: {
-        __typename: string
+        __typename: "GraphSidecar" | "GraphImage" | "GraphVideo"
         id: string
         shortcode: string
         dimensions: {

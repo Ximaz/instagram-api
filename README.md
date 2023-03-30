@@ -31,12 +31,7 @@ async function getContext(target) {
         // If not found, creating a new ctx
         ctx = await IGAPI.auth(target)
     }
-    try {
-        writeFileSync(ctxFilename, JSON.stringify(ctx), { encoding: "utf-8", flag: "w+" })
-    } catch (e1) {
-        console.warn(`Unable to save the context at ${ctxFilename}.`)
-        console.error(e1)
-    }
+    writeFileSync(ctxFilename, JSON.stringify(ctx), { encoding: "utf-8", flag: "w+" })
     return ctx
 }
 
