@@ -12,15 +12,6 @@ import axios from "axios"
 import HTMLParser from "node-html-parser"
 import { IContext } from "./types/IContext"
 
-function getRandomInt(min: number, max: number): number {
-    min = Math.ceil(min)
-    return Math.floor(Math.random() * (Math.floor(max) - min)) + min
-}
-
-function craftCookie(headers: any): string {
-    return `csrftoken=${headers["X-CSRFToken"]}; mid=${headers["X-Mid"]}; ig_did=${headers["X-Web-Device-Id"]}`
-}
-
 const defaultHeaders = {
     Host: "www.instagram.com",
     "User-Agent":
@@ -39,6 +30,19 @@ const defaultHeaders = {
     TE: "trailers",
 }
 
+function getRandomInt(min: number, max: number): number {
+    min = Math.ceil(min)
+    return Math.floor(Math.random() * (Math.floor(max) - min)) + min
+}
+
+function craftCookie(headers: any): string {
+    return `csrftoken=${headers["X-CSRFToken"]}; mid=${headers["X-Mid"]}; ig_did=${headers["X-Web-Device-Id"]}`
+}
+
+function getScripts(html: string): string[] {
+    return Array.from(HTMLParser(html).querySelectorAll('link[rel="preload"][as="script"]')).map((e) => e.getAttribute("href") || "")
+}
+
 async function getUserPage(username: string): Promise<string> {
     return (
         await axios.get(`https://www.instagram.com/${username}/`, {
@@ -48,28 +52,43 @@ async function getUserPage(username: string): Promise<string> {
 }
 
 async function getIGABSDId(html: string): Promise<number> {
-    const script = HTMLParser(html)
-        .querySelectorAll('link[rel="preload"][as="script"]')[2]
-        ?.getAttribute("href")
-    if (!script) throw new Error("Unable to find the magic script")
+    const scripts = getScripts(html)
+    let ASBD_ID = null,
+        magicScript = null
 
-    const magicScript = (await axios.get(script)).data,
+    for (const url of scripts) {
+        try {
+            magicScript = (await axios.get(url)).data
+        } catch (e) {
+            continue
+        }
         ASBD_ID = /\w+="(\d+)";\w+.ASBD_ID=\w+/gm.exec(magicScript)?.at(1)
-    if (!ASBD_ID) throw new Error("Unable to find the ASBD ID.")
-
+        if (ASBD_ID)
+            break
+    }
+        
+    if (!ASBD_ID)
+        throw new Error("Unable to find the ASBD ID.")
     return parseInt(ASBD_ID)
 }
 
 async function getQueries(html: string): Promise<string[]> {
-    const script = HTMLParser(html)
-        .querySelectorAll('link[rel="preload"][as="script"]')[1]
-        ?.getAttribute("href")
-    if (!script) throw new Error("Unable to find the magic script")
+    const scripts = getScripts(html)
+    let match = null,
+        magicScript = null
 
-    const magicScript: string = (await axios.get(script)).data,
+    for (const url of scripts) {
+        try {
+            magicScript = (await axios.get(url)).data
+        } catch (e) {
+            continue
+        }
         match = [...magicScript.matchAll(/[a-f0-9]{32}/gm)]
+        if (match && match.length >= 2)
+            break
+    }
 
-    if (!match) throw new Error("Unable to find queries in magic script.")
+    if (!match || match.length < 2) throw new Error("Unable to find queries in magic script.")
 
     const posts = match[0][0]
     if (!posts) throw new Error("Unable to find posts query hash.")

@@ -5,13 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const axios_1 = __importDefault(require("axios"));
 const node_html_parser_1 = __importDefault(require("node-html-parser"));
-function getRandomInt(min, max) {
-    min = Math.ceil(min);
-    return Math.floor(Math.random() * (Math.floor(max) - min)) + min;
-}
-function craftCookie(headers) {
-    return `csrftoken=${headers["X-CSRFToken"]}; mid=${headers["X-Mid"]}; ig_did=${headers["X-Web-Device-Id"]}`;
-}
 const defaultHeaders = {
     Host: "www.instagram.com",
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/111.0",
@@ -28,36 +21,59 @@ const defaultHeaders = {
     "Cache-Control": "no-cache",
     TE: "trailers",
 };
+function getRandomInt(min, max) {
+    min = Math.ceil(min);
+    return Math.floor(Math.random() * (Math.floor(max) - min)) + min;
+}
+function craftCookie(headers) {
+    return `csrftoken=${headers["X-CSRFToken"]}; mid=${headers["X-Mid"]}; ig_did=${headers["X-Web-Device-Id"]}`;
+}
+function getScripts(html) {
+    return Array.from((0, node_html_parser_1.default)(html).querySelectorAll('link[rel="preload"][as="script"]')).map((e) => e.getAttribute("href") || "");
+}
 async function getUserPage(username) {
     return (await axios_1.default.get(`https://www.instagram.com/${username}/`, {
         headers: defaultHeaders,
     })).data;
 }
 async function getIGABSDId(html) {
-    const script = (0, node_html_parser_1.default)(html)
-        .querySelectorAll('link[rel="preload"][as="script"]')[2]
-        ?.getAttribute("href");
-    if (!script)
-        throw new Error("Unable to find the magic script");
-    const magicScript = (await axios_1.default.get(script)).data, ASBD_ID = /\w+="(\d+)";\w+.ASBD_ID=\w+/gm.exec(magicScript)?.at(1);
+    const scripts = getScripts(html);
+    let ASBD_ID = null, magicScript = null;
+    for (const url of scripts) {
+        try {
+            magicScript = (await axios_1.default.get(url)).data;
+        }
+        catch (e) {
+            continue;
+        }
+        ASBD_ID = /\w+="(\d+)";\w+.ASBD_ID=\w+/gm.exec(magicScript)?.at(1);
+        if (ASBD_ID)
+            break;
+    }
     if (!ASBD_ID)
         throw new Error("Unable to find the ASBD ID.");
     return parseInt(ASBD_ID);
 }
 async function getQueries(html) {
-    const script = (0, node_html_parser_1.default)(html)
-        .querySelectorAll('link[rel="preload"][as="script"]')[1]
-        ?.getAttribute("href");
-    if (!script)
-        throw new Error("Unable to find the magic script");
-    const magicScript = (await axios_1.default.get(script)).data, match = [...magicScript.matchAll(/[a-f0-9]{32}/gm)];
-    console.log(match);
-    if (!match)
+    const scripts = getScripts(html);
+    let match = null, magicScript = null;
+    for (const url of scripts) {
+        try {
+            magicScript = (await axios_1.default.get(url)).data;
+        }
+        catch (e) {
+            continue;
+        }
+        match = [...magicScript.matchAll(/[a-f0-9]{32}/gm)];
+        if (match && match.length >= 2)
+            break;
+    }
+    if (!match || match.length < 2)
         throw new Error("Unable to find queries in magic script.");
-    const posts = match[0].at(0);
+    const posts = match[0][0];
     if (!posts)
         throw new Error("Unable to find posts query hash.");
-    const highlights = match[0].at(1);
+    const highlights = match[1][0];
     if (!highlights)
         throw new Error("Unable to find highlights query hash.");
     const docId = /^__d\("PolarisCookieModalActions",\[["A-Za-z0-9\-\.,]+\],\(function\(.+\)\{"use strict";.+"(\d+)"/gm
