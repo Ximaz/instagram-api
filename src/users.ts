@@ -52,7 +52,6 @@ export async function getUserReels(user: IUser, ctx: IContext, { page_size, max_
         max_id,
         include_feed_video: "true"
      }, { headers })).data
-
 }
 
 export async function getAllUserReels(user: IUser, ctx: IContext, { page_size, max_id }: { page_size: number, max_id: string | null }): Promise<IReel[]> {

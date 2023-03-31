@@ -35,7 +35,7 @@ async function getUserPage(username) {
 }
 async function getIGABSDId(html) {
     const script = (0, node_html_parser_1.default)(html)
-        .querySelectorAll('link[rel="preload"][as="script"]')[1]
+        .querySelectorAll('link[rel="preload"][as="script"]')[2]
         ?.getAttribute("href");
     if (!script)
         throw new Error("Unable to find the magic script");
@@ -46,17 +46,18 @@ async function getIGABSDId(html) {
 }
 async function getQueries(html) {
     const script = (0, node_html_parser_1.default)(html)
-        .querySelectorAll('link[rel="preload"][as="script"]')[2]
+        .querySelectorAll('link[rel="preload"][as="script"]')[1]
         ?.getAttribute("href");
     if (!script)
         throw new Error("Unable to find the magic script");
-    const magicScript = (await axios_1.default.get(script)).data, match = /^__d\("PolarisProfilePostsActions",\[["A-Za-z0-9\-\.,]+\],\(function\(.+\)\{"use strict";.+"([a-f0-9]{32})".+"([a-f0-9]{32})/gm.exec(magicScript);
+    const magicScript = (await axios_1.default.get(script)).data, match = [...magicScript.matchAll(/[a-f0-9]{32}/gm)];
+    console.log(match);
     if (!match)
         throw new Error("Unable to find queries in magic script.");
-    const posts = match.at(1);
+    const posts = match[0].at(0);
     if (!posts)
         throw new Error("Unable to find posts query hash.");
-    const highlights = match.at(2);
+    const highlights = match[0].at(1);
     if (!highlights)
         throw new Error("Unable to find highlights query hash.");
     const docId = /^__d\("PolarisCookieModalActions",\[["A-Za-z0-9\-\.,]+\],\(function\(.+\)\{"use strict";.+"(\d+)"/gm

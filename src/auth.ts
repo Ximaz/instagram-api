@@ -49,7 +49,7 @@ async function getUserPage(username: string): Promise<string> {
 
 async function getIGABSDId(html: string): Promise<number> {
     const script = HTMLParser(html)
-        .querySelectorAll('link[rel="preload"][as="script"]')[1]
+        .querySelectorAll('link[rel="preload"][as="script"]')[2]
         ?.getAttribute("href")
     if (!script) throw new Error("Unable to find the magic script")
 
@@ -62,22 +62,19 @@ async function getIGABSDId(html: string): Promise<number> {
 
 async function getQueries(html: string): Promise<string[]> {
     const script = HTMLParser(html)
-        .querySelectorAll('link[rel="preload"][as="script"]')[2]
+        .querySelectorAll('link[rel="preload"][as="script"]')[1]
         ?.getAttribute("href")
     if (!script) throw new Error("Unable to find the magic script")
 
-    const magicScript = (await axios.get(script)).data,
-        match =
-            /^__d\("PolarisProfilePostsActions",\[["A-Za-z0-9\-\.,]+\],\(function\(.+\)\{"use strict";.+"([a-f0-9]{32})".+"([a-f0-9]{32})/gm.exec(
-                magicScript
-            )
+    const magicScript: string = (await axios.get(script)).data,
+        match = [...magicScript.matchAll(/[a-f0-9]{32}/gm)]
 
     if (!match) throw new Error("Unable to find queries in magic script.")
 
-    const posts = match.at(1)
+    const posts = match[0][0]
     if (!posts) throw new Error("Unable to find posts query hash.")
 
-    const highlights = match.at(2)
+    const highlights = match[1][0]
     if (!highlights) throw new Error("Unable to find highlights query hash.")
 
     const docId =
