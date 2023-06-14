@@ -13,7 +13,7 @@ Code form ``tests/tests.js`` :
 ```js
 const IGAPI = require("../dist/index.js"),
     { writeFileSync } = require("fs"),
-    target = "sunnyrayyxo" // Change to your target.
+    target = "<target>" // Change to your target.
 
 /**
  * 
