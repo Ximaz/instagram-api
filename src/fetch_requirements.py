@@ -6,14 +6,6 @@ import requests
 from bs4 import BeautifulSoup as soup
 
 B36_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz"
-def __base36(number: int):
-    base36 = ''
-    if 0 <= number < 36:
-        return B36_ALPHABET[number]
-    while number != 0:
-        number, i = divmod(number, 36)
-        base36 = B36_ALPHABET[i] + base36
-    return base36
 
 BASE_HEADERS = {
     "Host": "www.instagram.com",
@@ -31,44 +23,98 @@ BASE_HEADERS = {
 }
 
 class Identity:
-    def __init__(self, target_username: str) -> None:
+    """
+    The Identity class provides the necessary data to perform Instagram API web requests,
+    allowing you to build an identity for a specific target account.
+
+    To prevent flooding Instagram with new identity requests for the same target, you can
+    save this object as a JSON file using the `dict()` function.
+
+    You can also load a previous Identity using the 'load_from' constructor parameter.
+
+    :param username: target's account username.
+    :type username: str
+
+    :param target_id: target's account ID captured.
+    :type target_id: str
+
+    :param machine_id: required header, generated.
+    :type machine_id: str
+
+    :param csrf_token: required header, captured.
+    :type csrf_token: str
+
+    :param app_id: required header, captured.
+    :type app_id: str
+
+    :param claim: required header, captured.
+    :type claim: str
+
+    :param device_id: required header, captured.
+    :type device_id: str
+
+    :param asbd_id: required header, captured.
+    :type asbd_id: str
+
+    :param doc_ids: list of hashed GraphQL endpoints :
+        - 0 : the Posts endpoint,
+        - 1 : the Reels endpoint
+    :type doc_ids: list[str]
+    """
+
+    def __init__(self, username: str = None, load_from: dict = None) -> None:
+        """
+        Identity constructor
+
+        :param username: The target's account usrename. Used for fresh Identity.
+        :type username: str
+
+        :param load_from: The Identity class in self.__dict__() format. Used for cache Identity.
+        :type load_from: dict
+        """
+
         headers = BASE_HEADERS.copy()
-        headers["Referer"] = "https://www.instagram.com/{0}/".format(target_username)
+        headers["Referer"] = "https://www.instagram.com/{0}/".format(username)
 
-        self.__username = target_username
-
-        self.__page = requests.get(headers["Referer"], headers=headers)
-        self.__page.raise_for_status() # Probably wrong username or Instagram is unreachable.
-
-        self.__soup = soup(self.__page.text, "html.parser")
-        self.__csrf_token = ""
-        self.__json_identity = self.__get_json_identity()
-
-        first_require = self.__json_identity["require"][0]
-        self.__target_id = re.findall(r"\"target_id\":\"([^\"]*)\"", json.dumps(first_require, separators=(",",":")), re.MULTILINE)[0]
-        define = json.dumps(first_require[3][0]["__bbox"]["define"], separators=(",",":"))
-
-        self.__app_id = re.findall(r"\"APP_ID\":\"([^\"]*)\"", define, re.MULTILINE)[0]
-        self.__claim = re.findall(r"\"claim\":\"([^\"]*)\"", define, re.MULTILINE)[0]
-        self.__device_id = re.findall(r"\"device_id\":\"([^\"]*)\"", define, re.MULTILINE)[1]
-        self.__machine_id = self.__generate_mid()
-
-        self.__asbd_id_regex = re.compile(r"^__d\(\"BDHeaderConfig\",\[\],\(function\([a-z,]+\){\"use strict\";[a-z]=\"(\d+)\";[a-z]\.ASBD_ID=[a-z]}\),\d+\);$", re.MULTILINE)
-        self.__asbd_id = self.__get_asbd_id()
-
-        self.__doc_ids = []
-
+        if load_from is None and username is not None:
+            self.__username = username
+            self.__machine_id = ''.join([self.__base36(random.randint(2**29, 2**32)) for _ in range(8)])
+            self.__page = requests.get(headers["Referer"], headers=headers)
+            self.__page.raise_for_status() # Probably wrong username or Instagram is unreachable.
+            self.__soup = soup(self.__page.text, "html.parser")
+            self.__csrf_token = ""
+            self.__json_identity = self.__get_json_identity()
+            first_require = self.__json_identity["require"][0]
+            self.__target_id = re.findall(r"\"target_id\":\"([^\"]*)\"", json.dumps(first_require, separators=(",",":")), re.MULTILINE)[0]
+            define = json.dumps(first_require[3][0]["__bbox"]["define"], separators=(",",":"))
+            self.__app_id = re.findall(r"\"APP_ID\":\"([^\"]*)\"", define, re.MULTILINE)[0]
+            self.__claim = re.findall(r"\"claim\":\"([^\"]*)\"", define, re.MULTILINE)[0]
+            self.__device_id = re.findall(r"\"device_id\":\"([^\"]*)\"", define, re.MULTILINE)[1]
+            self.__doc_ids = []
+            self.__asbd_id_regex = re.compile(r"^__d\(\"BDHeaderConfig\",\[\],\(function\([a-z,]+\){\"use strict\";[a-z]=\"(\d+)\";[a-z]\.ASBD_ID=[a-z]}\),\d+\);$", re.MULTILINE)
+            self.__asbd_id = self.__get_asbd_id()
+        elif load_from is not None:
+            self.__username = load_from["username"]
+            self.__target_id = load_from["target_id"]
+            self.__csrf_token = load_from["csrf_token"]
+            self.__app_id = load_from["app_id"]
+            self.__claim = load_from["claim"]
+            self.__device_id = load_from["device_id"]
+            self.__machine_id = load_from["machine_id"]
+            self.__asbd_id = load_from["asbd_id"]
+            self.__doc_ids = load_from["doc_ids"]
+        else:
+            raise Exception("You must either supply a username or a valid cache.")
 
     @staticmethod
-    def __generate_mid() -> str:
-        mid = ""
-        _min = 2**29
-        _max = 2**32
-
-        for _ in range(8):
-            mid += __base36(random.randint(_min, _max))
-        return mid
-    
+    def __base36(number: int):
+        base36 = ''
+        if 0 <= number < 36:
+            return B36_ALPHABET[number]
+        while number != 0:
+            number, i = divmod(number, 36)
+            base36 = B36_ALPHABET[i] + base36
+        return base36
 
     def __get_json_identity(self) -> dict:
         scripts_list = self.__soup.select("script[type=\"application/json\"]")
@@ -103,10 +149,12 @@ class Identity:
         urls_list = [link.get("href") for link in self.__soup.select("link[rel=\"preload\"][as=\"script\"]")]
         profile_posts_actions = re.compile(r"__d\(\"PolarisProfilePostsActions\",\[(?:[^]]*)\],\(function\((?:[^)]*)\){\"use strict\";[a-z]=\d+;[a-z]=\"([^\"]*)\";var [a-z]=\"([^\"]*)\",", re.MULTILINE)
         asbd_id = ""
+        i = 0
         for u in urls_list:
             s = requests.get(u)
             s.raise_for_status()
             doc_ids = profile_posts_actions.findall(s.text)
+
             if len(doc_ids) > 0:
                 self.__doc_ids = doc_ids[0]
             try:
@@ -161,15 +209,33 @@ class Identity:
             "X-Web-Device-Id": self.device_id
         }
         
+    def __dict__(self):
+        return {
+            "username": self.username,
+            "target_id": self.target_id,
+            "csrf_token": self.csrf_token,
+            "app_id": self.app_id,
+            "claim": self.claim,
+            "device_id": self.device_id,
+            "machine_id": self.machine_id,
+            "asbd_id": self.asbd_id,
+            "doc_ids": self.doc_ids
+        }
+
     def __repr__(self):
+        d = self.__dict__()
         return f"""Identity(
-    username = {self.username},
-    target_id = {self.target_id},
-    csrf_token = {self.csrf_token},
-    app_id = {self.app_id},
-    claim = {self.claim},
-    device_id = {self.device_id},
-    machine_id = {self.machine_id},
-    asbd_id = {self.asbd_id},
-    doc_ids = {', '.join(self.doc_ids)}
+    username = {d["username"]},
+    target_id = {d["target_id"]},
+    csrf_token = {d["csrf_token"]},
+    app_id = {d["app_id"]},
+    claim = {d["claim"]},
+    device_id = {d["device_id"]},
+    machine_id = {d["machine_id"]},
+    asbd_id = {d["asbd_id"]},
+    doc_ids = {', '.join(d["doc_ids"])}
 )"""
+
+    def __iter__(self):
+        for k, v in self.__dict__().items():
+            yield (k, v)
