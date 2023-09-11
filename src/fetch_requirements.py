@@ -56,9 +56,11 @@ class Identity:
     :param asbd_id: required header, captured.
     :type asbd_id: str
 
-    :param doc_ids: list of hashed GraphQL endpoints :
-        - 0 : the Posts endpoint,
-        - 1 : the Reels endpoint
+    :param doc_ids: dict of hashed GraphQL endpoints :
+        - "PolarisProfilePostsActions" [0] : the Posts endpoint,
+        - "PolarisProfilePostsActions" [1] : the Highlights endpoint,
+        - "PolarisPostActionLoadPost" [0] : the Post Meta endpoint,
+
     :type doc_ids: list[str]
     """
 
@@ -90,7 +92,7 @@ class Identity:
             self.__app_id = re.findall(r"\"APP_ID\":\"([^\"]*)\"", define, re.MULTILINE)[0]
             self.__claim = re.findall(r"\"claim\":\"([^\"]*)\"", define, re.MULTILINE)[0]
             self.__device_id = re.findall(r"\"device_id\":\"([^\"]*)\"", define, re.MULTILINE)[1]
-            self.__doc_ids = []
+            self.__doc_ids = {"PolarisProfilePostsActions": [], "PolarisPostActionLoadPost": []}
             self.__asbd_id_regex = re.compile(r"^__d\(\"BDHeaderConfig\",\[\],\(function\([a-z,]+\){\"use strict\";[a-z]=\"(\d+)\";[a-z]\.ASBD_ID=[a-z]}\),\d+\);$", re.MULTILINE)
             self.__asbd_id = self.__get_asbd_id()
         elif load_from is not None:
@@ -107,7 +109,7 @@ class Identity:
             raise Exception("You must either supply a username or a valid cache.")
 
     @staticmethod
-    def __base36(number: int):
+    def __base36(number: int) -> str:
         base36 = ''
         if 0 <= number < 36:
             return B36_ALPHABET[number]
@@ -147,16 +149,15 @@ class Identity:
 
     def __get_asbd_id(self) -> str:
         urls_list = [link.get("href") for link in self.__soup.select("link[rel=\"preload\"][as=\"script\"]")]
-        profile_posts_actions = re.compile(r"__d\(\"PolarisProfilePostsActions\",\[(?:[^]]*)\],\(function\((?:[^)]*)\){\"use strict\";[a-z]=\d+;[a-z]=\"([^\"]*)\";var [a-z]=\"([^\"]*)\",", re.MULTILINE)
+        profile_posts_actions = re.compile(r"__d\(\"(PolarisProfilePostsActions|PolarisPostActionLoadPost)\",\[(?:[^]]*)\],\(function\((?:[^)]*)\){\"use strict\";(?:[a-z]=\d+;[a-z]=\"([^\"]*)\";)?var [a-z]=\"(\d+)\"", re.MULTILINE)
         asbd_id = ""
-        i = 0
         for u in urls_list:
             s = requests.get(u)
             s.raise_for_status()
             doc_ids = profile_posts_actions.findall(s.text)
 
             if len(doc_ids) > 0:
-                self.__doc_ids = doc_ids[0]
+                self.__doc_ids[doc_ids[0]].extend([i for m in doc_ids[1:] for i in m if i != ''])
             try:
                 asbd_id = self.__asbd_id_regex.findall(s.text)[0]
             except IndexError:
@@ -164,52 +165,53 @@ class Identity:
         return asbd_id
 
     @property
-    def username(self):
+    def username(self) -> str:
         return self.__username
     
     @property
-    def target_id(self):
+    def target_id(self) -> str:
         return self.__target_id
 
     @property
-    def csrf_token(self):
+    def csrf_token(self) -> str:
         return self.__csrf_token
 
     @property
-    def app_id(self):
+    def app_id(self) -> str:
         return self.__app_id
 
     @property
-    def claim(self):
+    def claim(self) -> str:
         return self.__claim
 
     @property
-    def device_id(self):
+    def device_id(self) -> str:
         return self.__device_id
 
     @property
-    def machine_id(self):
+    def machine_id(self) -> str:
         return self.__machine_id
 
     @property
-    def asbd_id(self):
+    def asbd_id(self) -> str:
         return self.__asbd_id
     
     @property
-    def doc_ids(self):
+    def doc_ids(self) -> dict:
         return self.__doc_ids
     
-    def build_headers(self):
+    def build_headers(self) -> dict:
         return {
             "X-ASBD-ID": self.asbd_id,
             "X-CSRFToken": self.csrf_token,
             "X-IG-App-ID": self.app_id,
             "X-IG-WWW-Claim": self.claim,
             "X-Mid": self.machine_id,
-            "X-Web-Device-Id": self.device_id
+            "X-Web-Device-Id": self.device_id,
+            "Cookie": f"csrftoken={self.csrf_token}; mid={self.machine_id}; ig_did={self.device_id}"
         }
         
-    def __dict__(self):
+    def __dict__(self) -> dict:
         return {
             "username": self.username,
             "target_id": self.target_id,
@@ -222,7 +224,7 @@ class Identity:
             "doc_ids": self.doc_ids
         }
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         d = self.__dict__()
         return f"""Identity(
     username = {d["username"]},
@@ -233,7 +235,7 @@ class Identity:
     device_id = {d["device_id"]},
     machine_id = {d["machine_id"]},
     asbd_id = {d["asbd_id"]},
-    doc_ids = {', '.join(d["doc_ids"])}
+    doc_ids = {json.dumps(d["doc_ids"])}
 )"""
 
     def __iter__(self):

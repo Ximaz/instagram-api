@@ -1,10 +1,12 @@
 import json
-
 from src.api import API
 
+# api = API(username="drake", load_from=None)
+# with open("drake_api.json", "w") as s:
+#     api.export_api(s)
 with open("drake_api.json", "r") as s:
-    data = json.load(s)
-    api = API(load_from=data, username=None)
+    api = API(load_from=json.load(s), username=None)
 
-metadata = api.get_metadata()
-print(metadata)
+posts = api.fetch_highlights()
+with open("save.json", "w+") as s:
+    json.dump(posts, s)
