@@ -125,7 +125,7 @@ def __get_csrftoken(data: dict):
 
 def __get_target(props: dict):
     return {
-        "target": props,
+        "user": props,
         "query_id": props["polaris_preload"]["profile_extras"]["request"]["params"]["query"]["query_id"]
     }
 
@@ -133,7 +133,7 @@ def __get_target(props: dict):
 def __get_deferred_cookies(data: dict):
     return {
         "ig_did": data["deferredCookies"]["_js_ig_did"]["value"],
-        "mid": data["deferredCookies"]["mid"]["value"],
+        "mid": data["deferredCookies"]["_js_mid"]["value"],
         "datr": data["deferredCookies"]["_js_datr"]["value"],
     }
 
@@ -163,7 +163,7 @@ def get_natives(session: requests.Session, target: str):
         **__get_bootloader_revision(document=document),
         **__get_jazoest(document=document),
         **__generate_websession_id(),
-        **__get_deferred_cookies(cookies["require"][38][3][0]),
+        **__get_deferred_cookies(data=__lookup_module(name="CometPlatformRootClient", parent=cookies["require"])[3][0]),
         **__get_query_doc_id("PolarisProfilePageContentQuery", session=session, document=document),
         "fb_api_caller_class": "RelayModern",
         "server_timestamps": 1,
@@ -174,7 +174,7 @@ def get_natives(session: requests.Session, target: str):
     }
 
 def native_to_target(natives: dict) -> dict:
-    return natives["target"]
+    return natives["user"]
 
 def natives_to_graphql(natives: dict, variables: dict) -> dict:
     return {
