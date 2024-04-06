@@ -93,9 +93,9 @@ def __get_query_doc_id(query_name: str, session: requests.Session, document: bs4
         if 1 == len(groups):
             data["asbd_id"] = groups[0]
         groups = query_hashes.findall(javascript)
-        if 2 == len(groups):
-            data["highlights_query_hash"] = groups[0]
-            data["posts_query_hash"] = groups[1]
+        if 1 == len(groups) and 2 == len(groups[0]):
+            data["posts_query_hash"] = groups[0][0]
+            data["highlights_query_hash"] = groups[0][1]
     return data
 
 
