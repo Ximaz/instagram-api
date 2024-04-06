@@ -2,7 +2,7 @@ import apigram
 
 
 def main():
-    target = "sunnyrayyxo"
+    target = "TEST"
     api = apigram.ApiGram(username=target, proxies=None)
     recent_posts = api.fetch_posts()
     print(recent_posts)
