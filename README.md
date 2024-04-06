@@ -8,7 +8,7 @@ Licence can be found at ``LICENCE``, it's ``GNU GPLv3``.
 ## Documentation
 
 ```python
-# from src.api import API
+# from apigram import ApiGram
 
 class ApiGram:
     """
