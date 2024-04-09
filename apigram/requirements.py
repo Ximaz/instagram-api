@@ -73,16 +73,20 @@ def __number_to_base(n, b):
     return digits[::-1]
 
 
-def __get_query_doc_id(query_name: str, session: requests.Session, document: bs4.BeautifulSoup):
-    scripts = document.select("link[rel=\"preload\"][as=\"script\"]")
+def __get_query_doc_id(query_name: str, session: requests.Session, document: bs4.BeautifulSoup, script_urls: list[str]):
+    scripts = document.select("link[as=\"script\"]") + document.select("script")
     query_regex = re.compile("__d\\(\"%s\\$Parameters\",\\[\\],\\(function\\(.,.,.,.,.,.\\){\"use strict\";.={kind:\"PreloadableConcreteRequest\",params:{id:\"(\\d+)\",metadata:{},name:\"%s\",operationKind:\"query\",text:null}};.\\.exports=.}\\),null\\);" % (query_name, query_name), re.M)
     asbd_id_regex = re.compile("__d\\(\"PolarisBDHeaderConfig\",\\[\\],\\(function\\(.,.,.,.,.,.\\){\"use strict\";.=\"(\\d+)\";.\\.ASBD_ID=.}\\),\\d+\\);", re.M)
     query_hashes = re.compile("__d\\(\"PolarisProfilePostsActions\",.+.=\"(\\d+)\";.+.=\"(\\d+)\"", re.M)
+    post_loader = re.compile("__d\\(\"PolarisPostActionLoadPostQueryQuery_instagramRelayOperation\",\\[\\],\\(function\\(.,.,.,.,.,.\\){.\\.exports=\"([a-f0-9]+)\"}\\),null\\);", re.M)
+    comments = re.compile("__d\\(\"PolarisThreadedCommentActions\",\\[.+\\],\\(function\\(.,.,.,.,.,.,.\\){[^=]+=\"([a-f0-9]+)\",.=\"([a-f0-9]+)\";", re.M)
+    post_stats = re.compile("params:{id:\"([a-f0-9]+)\",metadata:{},name:\"PolarisPostActionLoadPostQueryLegacyQuery\",", re.M)
     data = {}
+    urls = script_urls + list(map(lambda s: s.attrs.get("href", s.attrs.get("src", None)), scripts))
+    urls = set(urls)
 
-    for script in scripts:
-        url = script.attrs.get("href", None)
-        if None is url:
+    for url in urls:
+        if None is url or url.startswith("data:"):
             continue
         javascript = session.get(url=url).text
         groups = query_regex.findall(javascript)
@@ -92,10 +96,20 @@ def __get_query_doc_id(query_name: str, session: requests.Session, document: bs4
         groups = asbd_id_regex.findall(javascript)
         if 1 == len(groups):
             data["asbd_id"] = groups[0]
+        groups = post_stats.findall(javascript)
+        if 1 == len(groups):
+            data["post_stats_doc_id"] = groups[0]
+        groups = post_loader.findall(javascript)
+        if 1 == len(groups):
+            data["post_metadata_query_hash"] = groups[0]
         groups = query_hashes.findall(javascript)
         if 1 == len(groups) and 2 == len(groups[0]):
             data["posts_query_hash"] = groups[0][0]
             data["highlights_query_hash"] = groups[0][1]
+        groups = comments.findall(javascript)
+        if 1 == len(groups) and 2 == len(groups[0]):
+            data["comments_parent_query_hash"] = groups[0][0]
+            data["comments_child_query_hash"] = groups[0][1]
     return data
 
 
@@ -152,7 +166,12 @@ def get_natives(session: requests.Session, target: str):
     modules = __webpack_requirements(document=document)
     parent = modules[13]["content"][0]["__bbox"]
     cookies = modules[27]["content"][0]["__bbox"]
+    script_urls = []
 
+    for m in modules:
+        if m["name"] != "Bootloader" or m["description"] != "handlePayload":
+            continue
+        script_urls.extend(list(map(lambda v: v["src"], filter(lambda v: v["type"] == "js", m["content"][0]["rsrcMap"].values()))))
     return {
         **__get_relay_api_config_defaults(data=__lookup_module(name="RelayAPIConfigDefaults", parent=parent["define"])[2]),
         **__get_site_data(data=__lookup_module(name="SiteData", parent=parent["define"])[2]),
@@ -164,7 +183,7 @@ def get_natives(session: requests.Session, target: str):
         **__get_jazoest(document=document),
         **__generate_websession_id(),
         **__get_deferred_cookies(data=__lookup_module(name="CometPlatformRootClient", parent=cookies["require"])[3][0]),
-        **__get_query_doc_id("PolarisProfilePageContentQuery", session=session, document=document),
+        **__get_query_doc_id("PolarisProfilePageContentQuery", session=session, document=document, script_urls=script_urls),
         "fb_api_caller_class": "RelayModern",
         "server_timestamps": 1,
         "__req": 1,  # Always returns 1 inside the sources, but it's post incremented. Useful ?
@@ -199,7 +218,7 @@ def natives_to_graphql(natives: dict, variables: dict) -> dict:
         "__spin_t": natives.get("__spin_t", ""),
         "fb_api_caller_class": natives.get("fb_api_caller_class", ""),
         "fb_api_req_friendly_name": natives.get("fb_api_req_friendly_name", ""),
-        "variables": json.dumps(variables),
+        "variables": json.dumps(variables, separators=(',', ':')),
         "server_timestamps": natives.get("server_timestamps", ""),
         "doc_id": natives.get("doc_id", ""),
     }
@@ -213,7 +232,7 @@ def natives_to_headers(natives: dict) -> dict:
         "X-IG-App-ID": natives.get("app_id", ""),
         "X-IG-Mid": natives.get("mid", ""),
         "X-IG-WWW-Claim": natives.get("claim", "0"),
-        "Cookie": f"csrfoken={natives.get("csrftoken", "")}; ig_did={natives.get("ig_did", "")}; mid={natives.get("mid", "")}; _js_datr={natives.get("datr", "")}; dpr={natives.get("dpr", "")}"
+        "Cookie": f"csrfoken={natives.get("csrftoken", "")}; ig_did={natives.get("ig_did", "")}; mid={natives.get("mid", "")}; datr={natives.get("datr", "")}; dpr={natives.get("dpr", "")}"
     }
 
 
@@ -227,3 +246,19 @@ def natives_to_highlights_query_hash(natives: dict) -> str:
 
 def natives_to_posts_query_hash(natives: dict) -> str:
     return natives.get("posts_query_hash", "")
+
+
+def natives_to_post_metadata_query_hash(natives: dict) -> str:
+    return natives.get("post_metadata_query_hash", "")
+
+
+def natives_to_comments_parent_query_hash(natives: dict) -> str:
+    return natives.get("comments_parent_query_hash", "")
+
+
+def natives_to_comments_child_query_hash(natives: dict) -> str:
+    return natives.get("comments_child_query_hash", "")
+
+
+def natives_to_post_stats_doc_id(natives: dict) -> str:
+    return natives.get("post_stats_doc_id", "")
