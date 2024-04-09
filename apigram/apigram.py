@@ -33,7 +33,7 @@ class ApiGram:
 
     def __make_session(self, proxies: dict[str, str] = None):
         return proxy_session(proxies=proxies)
-    
+
     def __update_session(self):
         self.__session.headers.update({
             **self.__session.headers,
@@ -44,6 +44,14 @@ class ApiGram:
     def session(self):
         return self.__session
 
+    def fetch_user_profile(self) -> dict:
+        url = "https://www.instagram.com/api/v1/users/web_profile_info/"
+        response = self.session.get(url=url, params={
+            "username": self.__username
+        })
+        response.raise_for_status()
+        return response.json()
+
     def fetch_user_metadata(self) -> dict:
         url = "https://www.instagram.com/api/graphql/"
         data = natives_to_graphql(natives=self.__natives, variables={
@@ -53,14 +61,6 @@ class ApiGram:
         })
         response = self.__session.post(url=url, data=data, headers={
             "Content-Type": "application/x-www-form-urlencoded"
-        })
-        response.raise_for_status()
-        return response.json()
-
-    def fetch_user_profile(self) -> dict:
-        url = "https://www.instagram.com/api/v1/users/web_profile_info/"
-        response = self.session.get(url=url, params={
-            "username": self.__username
         })
         response.raise_for_status()
         return response.json()
@@ -78,43 +78,86 @@ class ApiGram:
         response.raise_for_status()
         return response.json()
 
-    def __fetch_highlights_v1(self) -> dict:
+    def __fetch_post_metadata_v1(self, shortcode: str, params: dict = {}) -> dict:
         url = "https://www.instagram.com/graphql/query/"
         response = self.session.get(url=url, params={
-            "doc_id": natives_to_highlights_query_hash(self.__natives),
+            "doc_id": natives_to_post_metadata_query_hash(self.__natives),
             "variables": json.dumps({
-                "include_chaining": True,
-                "include_highlight_reels": True,
-                "include_live_status": True,
-                "include_logged_out_extras": True,
-                "include_reel": True,
-                "include_suggested_users": True,
-                "user_id": self.__user["id"]
+                "shortcode": shortcode,
+                **params,
             })
         })
         response.raise_for_status()
         return response.json()
 
-    def __fetch_highlights_v2(self) -> dict:
+    def __fetch_post_metadata_v2(self, shortcode: str, params: dict = {}) -> dict:
+        url = "https://www.instagram.com/api/graphql/"
+        response = self.session.post(url=url, data={
+            **natives_to_graphql(self.__natives, {
+                "shortcode": shortcode,
+                **params
+            }),
+            "fb_api_req_friendly_name": "PolarisPostActionLoadPostQueryLegacyQuery",
+            "doc_id": natives_to_post_stats_doc_id(self.__natives)
+        }, headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+        })
+        response.raise_for_status()
+        return response.json()
+
+    def fetch_post_metadata(self, shortcode: str) -> dict:
+        params = {
+                "fetch_comment_count": 40,
+                "fetch_related_profile_media_count": 3,
+                "parent_comment_count": 24,
+                "child_comment_count": 3,
+                "fetch_like_count": 10,
+                "fetch_tagged_user_count": None,
+                "fetch_preview_comment_count": 2,
+                "has_threaded_comments": True,
+                "hoisted_comment_id": None,
+                "hoisted_reply_id": None,
+        }
+        try:
+            return self.__fetch_post_metadata_v1(shortcode=shortcode, params=params)
+        except urllib.error.HTTPError:
+            return self.__fetch_post_metadata_v2(shortcode=shortcode, params=params)
+
+    def __fetch_highlights_v1(self, params: dict = {}) -> dict:
+        url = "https://www.instagram.com/graphql/query/"
+        response = self.session.get(url=url, params={
+            "doc_id": natives_to_highlights_query_hash(self.__natives),
+            "variables": json.dumps({
+                "user_id": self.__user["id"],
+                **params
+            })
+        })
+        response.raise_for_status()
+        return response.json()
+
+    def __fetch_highlights_v2(self, params: dict = {}) -> dict:
         url = "https://www.instagram.com/graphql/query/"
         response = self.session.get(url=url, params={
             "query_id": natives_to_query_id(self.__natives),
+            "user_id": self.__user["id"],
+            **params
+        })
+        response.raise_for_status()
+        return response.json()
+
+    def fetch_highlights(self) -> dict:
+        params = {
             "include_chaining": True,
             "include_highlight_reels": True,
             "include_live_status": True,
             "include_logged_out_extras": True,
             "include_reel": True,
             "include_suggested_users": True,
-            "user_id": self.__user["id"]
-        })
-        response.raise_for_status()
-        return response.json()
-    
-    def fetch_highlights(self) -> dict:
+        }
         try:
-            return self.__fetch_highlights_v1()
+            return self.__fetch_highlights_v1(params=params)
         except urllib.error.HTTPError:
-            return self.__fetch_highlights_v2()
+            return self.__fetch_highlights_v2(params=params)
 
     def fetch_reels(self, page_size: int = 12, max_id: str = None) -> dict:
         url = "https://www.instagram.com/api/v1/clips/user/"
@@ -127,50 +170,6 @@ class ApiGram:
             data["max_id"] = max_id
         response = self.session.post(url=url, data=data, headers={
             "Content-Type": "application/x-www-form-urlencoded"
-        })
-        response.raise_for_status()
-        return response.json()
-
-    def fetch_post_metadata(self, shortcode: str) -> dict:
-        url = "https://www.instagram.com/graphql/query/"
-        response = self.session.get(url=url, params={
-            "doc_id": natives_to_post_metadata_query_hash(self.__natives),
-            "variables": json.dumps({
-                "child_comment_count": 40,
-                "fetch_comment_count": True,
-                "fetch_like_count": 10,
-                "fetch_preview_comment_count": 2,
-                "fetch_tagged_user_count": None,
-                "has_threaded_comments": True,
-                "hoisted_comment_id": None,
-                "hoisted_reply_id": None,
-                "parent_comment_count": None,
-                "shortcode": shortcode
-            })
-        })
-        response.raise_for_status()
-        return response.json()
-
-    def fetch_post_stats(self, shortcode: str) -> dict:
-        url = "https://www.instagram.com/api/graphql/"
-        response = self.session.post(url=url, data={
-            **natives_to_graphql(self.__natives, {
-                "shortcode": shortcode,
-                "fetch_comment_count": 40,
-                "fetch_related_profile_media_count": 3,
-                "parent_comment_count": 24,
-                "child_comment_count": 3,
-                "fetch_like_count": 10,
-                "fetch_tagged_user_count": None,
-                "fetch_preview_comment_count": 2,
-                "has_threaded_comments": True,
-                "hoisted_comment_id": None,
-                "hoisted_reply_id": None,
-            }),
-            "fb_api_req_friendly_name": "PolarisPostActionLoadPostQueryLegacyQuery",
-            "doc_id": natives_to_post_stats_doc_id(self.__natives)
-        }, headers={
-            "Content-Type": "application/x-www-form-urlencoded",
         })
         response.raise_for_status()
         return response.json()

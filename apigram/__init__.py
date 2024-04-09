@@ -1,5 +1,5 @@
 from .proxy_manager import proxy_session
-from .requirements import                  \
+from .natives import                  \
     get_natives,                           \
     natives_to_graphql,                    \
     natives_to_headers,                    \
